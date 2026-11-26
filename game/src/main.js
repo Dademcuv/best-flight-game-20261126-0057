@@ -1,5 +1,5 @@
-// Skyline Courier — entry point. Wires input, physics, sound and rendering,
-// and provides deterministic screenshot poses via ?shot= for the entry cover.
+// Skyline Courier entry point: wires input, physics, sound and rendering,
+// and provides deterministic screenshot poses via ?shot= for the entry.
 import { Game } from './game.js';
 import { Input } from './input.js';
 import { Renderer } from './render.js';
@@ -11,7 +11,7 @@ const input = new Input(canvas);
 const renderer = new Renderer(canvas);
 const sound = new Sound();
 let paused = false;
-let lastRings = 0, lastState = game.state;
+let lastRings = 0, lastState = game.state, lastCargo = game.cargo.state;
 
 function fitCanvas() {
   const s = Math.min(innerWidth / canvas.width, innerHeight / canvas.height);
@@ -26,19 +26,38 @@ function applyShot(name) {
   if (name === 'title') { game.reset(); return; }
   game.start();
   if (name === 'cover') {
-    game.pos = { x: 260, y: 252, z: -600 };
-    game.heading = -0.16; game.speed = 64; game.throttle = 0.66; game.pitch = 0.02; game.roll = 0.12;
+    // Ring 1 centred ahead, runway beyond it, ranges closing the horizon.
+    game.pos = { x: 0, y: 285, z: -700 };
+    game.heading = 0; game.speed = 64; game.throttle = 0.66; game.pitch = 0.02; game.roll = 0.05;
+    game.fuel = 82; game.time = 12;
     game.say('Ring 1 ahead — runway beyond');
   } else if (name === 'rings') {
-    game.pos = { x: 640, y: 264, z: -1850 };
-    game.heading = 0.05; game.roll = -0.38; game.speed = 71; game.pitch = 0.04;
-    game.rings[0].done = true; game.nextRing = 1; game.score = 320; game.time = 38;
+    // Banking toward Ring 2 over the east foothills, cargo still aboard.
+    game.pos = { x: 520, y: 275, z: -2050 };
+    game.heading = 0.47; game.roll = -0.5; game.speed = 71; game.pitch = 0.04; game.throttle = 0.7;
+    game.rings[0].done = true; game.nextRing = 1; game.score = 320; game.time = 38; game.fuel = 76;
     game.say('Ring 1 of 8 — +320');
   } else if (name === 'landing') {
-    game.pos = { x: 6, y: 122, z: -1720 };
-    game.heading = 0; game.speed = 47; game.throttle = 0.3; game.pitch = -0.06;
+    // Final approach on the strip with the low-fuel warning lit.
+    game.pos = { x: 0, y: 120, z: -1500 };
+    game.heading = 0; game.speed = 47; game.throttle = 0.3; game.pitch = -0.05; game.roll = 0;
     game.rings.forEach((r) => { r.done = true; }); game.nextRing = 8; game.score = 2210; game.time = 118;
-    game.say('All rings clear — land on the runway!');
+    game.fuel = 14;
+    game.cargo.state = 'done'; game.cargo.hit = true; game.cargoBonus = 400;
+    game.say('Final approach — runway ahead');
+  } else if (name === 'results') {
+    // Touchdown report: grade, score breakdown and fuel remaining.
+    game.pos = { x: 0, y: 20, z: -2600 };
+    game.heading = 0; game.speed = 0; game.throttle = 0; game.pitch = 0; game.roll = 0;
+    game.rings.forEach((r) => { r.done = true; }); game.nextRing = 8;
+    game.ringScore = 2000; game.cargoBonus = 400; game.landingBonus = 400;
+    game.timeBonus = 72; game.fuelBonus = 54; game.score = 2926;
+    game.time = 132; game.fuel = 18;
+    game.cargo.state = 'done'; game.cargo.hit = true;
+    game.state = 'landed';
+    game.grade = game.computeGrade();
+    game.endReason = 'Perfect sortie — every ring flown and home safe.';
+    game.messageT = 0;
   }
 }
 const shot = new URLSearchParams(location.search).get('shot');
@@ -47,6 +66,7 @@ if (shot) applyShot(shot);
 canvas.addEventListener('click', () => {
   sound.ensure();
   if (game.state === 'title') game.start();
+  else if (game.state === 'flying') game.dropCargo();
   else if (game.state === 'landed' || game.state === 'crashed') game.start();
 });
 
@@ -56,10 +76,15 @@ function frame(now) {
   const dt = Math.min(0.05, (now - last) / 1000);
   last = now;
   if (input.hit('Enter')) { sound.ensure(); if (game.state !== 'flying') game.start(); }
+  if (input.hit(' ')) { sound.ensure(); game.dropCargo(); }
   if (input.hit('p', 'P')) paused = !paused;
   if (!paused && !shot) {
     game.update(dt, input.axes(canvas));
     if (game.nextRing !== lastRings) { sound.ring(); lastRings = game.nextRing; }
+    if (game.cargo.state !== lastCargo) {
+      if (game.cargo.state === 'done' && game.cargo.hit) sound.ring();
+      lastCargo = game.cargo.state;
+    }
     if (game.state !== lastState) {
       if (game.state === 'crashed') sound.crash();
       if (game.state === 'landed') sound.land();
