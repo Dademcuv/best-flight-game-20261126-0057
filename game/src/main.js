@@ -26,28 +26,29 @@ function applyShot(name) {
   if (name === 'title') { game.reset(); return; }
   game.start();
   if (name === 'cover') {
-    // Ring 1 centred ahead, runway beyond it, ranges closing the horizon.
-    game.pos = { x: 0, y: 285, z: -700 };
-    game.heading = 0; game.speed = 64; game.throttle = 0.66; game.pitch = 0.02; game.roll = 0.05;
+    // Ring 1 centred ahead with the runway strip visible beyond it.
+    game.pos = { x: 0, y: 312, z: -790 };
+    game.heading = 0; game.speed = 64; game.throttle = 0.66; game.pitch = -0.03; game.roll = 0.03;
+    game.cameraPitch = -0.17;
     game.fuel = 82; game.time = 12;
     game.say('Ring 1 ahead — runway beyond');
   } else if (name === 'rings') {
     // Banking toward Ring 2 over the east foothills, cargo still aboard.
-    game.pos = { x: 520, y: 275, z: -2050 };
-    game.heading = 0.47; game.roll = -0.5; game.speed = 71; game.pitch = 0.04; game.throttle = 0.7;
+    game.pos = { x: 500, y: 282, z: -1980 };
+    game.heading = 0.44; game.roll = -0.42; game.speed = 71; game.pitch = -0.02; game.throttle = 0.7;
     game.rings[0].done = true; game.nextRing = 1; game.score = 320; game.time = 38; game.fuel = 76;
     game.say('Ring 1 of 8 — +320');
   } else if (name === 'landing') {
     // Final approach on the strip with the low-fuel warning lit.
-    game.pos = { x: 0, y: 120, z: -1500 };
-    game.heading = 0; game.speed = 47; game.throttle = 0.3; game.pitch = -0.05; game.roll = 0;
+    game.pos = { x: 0, y: 112, z: -1420 };
+    game.heading = 0; game.speed = 47; game.throttle = 0.3; game.pitch = -0.1; game.roll = 0;
     game.rings.forEach((r) => { r.done = true; }); game.nextRing = 8; game.score = 2210; game.time = 118;
     game.fuel = 14;
     game.cargo.state = 'done'; game.cargo.hit = true; game.cargoBonus = 400;
     game.say('Final approach — runway ahead');
   } else if (name === 'results') {
-    // Touchdown report: grade, score breakdown and fuel remaining.
-    game.pos = { x: 0, y: 20, z: -2600 };
+    // Touchdown report: parked on the strip, grade and score breakdown.
+    game.pos = { x: 0, y: 20, z: -2320 };
     game.heading = 0; game.speed = 0; game.throttle = 0; game.pitch = 0; game.roll = 0;
     game.rings.forEach((r) => { r.done = true; }); game.nextRing = 8;
     game.ringScore = 2000; game.cargoBonus = 400; game.landingBonus = 400;

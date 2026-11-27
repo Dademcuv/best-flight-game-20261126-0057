@@ -1,7 +1,9 @@
-// HUD and screens for Skyline Courier: altitude/speed/heading readouts, a
-// compass tape, lit instruments with wind and cargo status, stall and
-// low-fuel warnings, and a graded results report after touchdown.
+// HUD for Skyline Courier: altitude/speed/heading readouts, a compass
+// tape, lit instruments with wind and cargo status, and stall and low-fuel
+// warnings. The title and touchdown screens live in screens.js.
 import { COLORS, PLANE } from './config.js';
+import { drawTitleScreen, drawEndScreen } from './screens.js';
+import { drawCompass, drawRingArrow } from './navigation.js';
 
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
@@ -23,15 +25,15 @@ export class Hud {
   }
 
   draw(game) {
-    if (game.state === 'title') { this.titleScreen(); return; }
+    if (game.state === 'title') { drawTitleScreen(this); return; }
     this.flightData(game);
     this.missionData(game);
-    this.compass(game);
-    if (game.state === 'landed' || game.state === 'crashed') { this.endScreen(game); return; }
+    drawCompass(this, game);
+    if (game.state === 'landed' || game.state === 'crashed') { drawEndScreen(this, game); return; }
     this.message(game);
     this.warnings(game);
     this.instruments(game);
-    this.ringArrow(game);
+    drawRingArrow(this, game);
   }
 
   flightData(game) {
@@ -39,11 +41,11 @@ export class Hud {
     const spd = Math.round(game.speed * 1.94);
     const hdg = Math.round(game.headingDeg);
     this.panel(16, 14, 252, 96);
-    this.label('ALT', 44, 40); this.label('SPD', 128, 40); this.label('HDG', 212, 40);
-    this.label(`${alt}`, 44, 74, 30, COLORS.hud, 'center', 800);
-    this.label(`${spd}`, 128, 74, 30, COLORS.hud, 'center', 800);
-    this.label(`${String(hdg).padStart(3, '0')}°`, 212, 74, 30, COLORS.hud, 'center', 800);
-    this.label('ft', 44, 94, 12); this.label('kt', 128, 94, 12); this.label('deg', 212, 94, 12);
+    this.label('ALT', 58, 40); this.label('SPD', 132, 40); this.label('HDG', 212, 40);
+    this.label(`${alt}`, 58, 74, 28, COLORS.hud, 'center', 800);
+    this.label(`${spd}`, 132, 74, 28, COLORS.hud, 'center', 800);
+    this.label(`${String(hdg).padStart(3, '0')}°`, 212, 74, 28, COLORS.hud, 'center', 800);
+    this.label('ft', 58, 94, 12); this.label('kt', 132, 94, 12); this.label('deg', 212, 94, 12);
   }
 
   missionData(game) {
@@ -86,28 +88,6 @@ export class Hud {
     ctx.fillStyle = 'rgba(146,84,12,0.88)';
     ctx.beginPath(); ctx.roundRect(this.w / 2 - 130, y, 260, 36, 8); ctx.fill();
     this.label(text, this.w / 2, y + 25, 17, '#fff', 'center', 800);
-  }
-
-  compass(game) {
-    const ctx = this.ctx;
-    const w = 340, x = (this.w - w) / 2, y = 14;
-    this.panel(x, y, w, 44);
-    const hdg = game.headingDeg;
-    ctx.save(); ctx.beginPath(); ctx.rect(x + 6, y + 4, w - 12, 36); ctx.clip();
-    for (let d = -60; d <= 60; d += 5) {
-      const deg = ((Math.round(hdg / 5) * 5 + d) % 360 + 360) % 360;
-      const px = this.w / 2 + d * 2.6;
-      const major = deg % 30 === 0;
-      ctx.strokeStyle = COLORS.hudDim; ctx.lineWidth = major ? 2 : 1;
-      ctx.beginPath(); ctx.moveTo(px, y + (major ? 22 : 30)); ctx.lineTo(px, y + 38); ctx.stroke();
-      if (major) {
-        const name = { 0: 'N', 90: 'E', 180: 'S', 270: 'W' }[deg] || String(deg / 10);
-        this.label(name, px, y + 19, 14, COLORS.hud, 'center', 700);
-      }
-    }
-    ctx.restore();
-    ctx.fillStyle = COLORS.ringNext;
-    ctx.beginPath(); ctx.moveTo(this.w / 2 - 7, y + 40); ctx.lineTo(this.w / 2 + 7, y + 40); ctx.lineTo(this.w / 2, y + 30); ctx.closePath(); ctx.fill();
   }
 
   instruments(game) {
@@ -165,69 +145,4 @@ export class Hud {
     ctx.beginPath(); ctx.roundRect(x, y, Math.max(8, w * clamp(frac, 0, 1)), 13, 6); ctx.fill();
   }
 
-  ringArrow(game) {
-    const ring = game.rings[game.nextRing];
-    if (!ring || game.state !== 'flying') return;
-    const ctx = this.ctx;
-    const target = Math.atan2(ring.x - game.pos.x, -(ring.z - game.pos.z));
-    let rel = target - game.heading;
-    rel = Math.atan2(Math.sin(rel), Math.cos(rel));
-    const x = this.w - 70, y = 170;
-    ctx.save(); ctx.translate(x, y); ctx.rotate(rel);
-    ctx.fillStyle = COLORS.ringNext;
-    ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(12, 12); ctx.lineTo(0, 5); ctx.lineTo(-12, 12); ctx.closePath(); ctx.fill();
-    ctx.restore();
-    this.label('NEXT RING', x, y + 42, 11);
-  }
-
-  titleScreen() {
-    const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(8,18,34,0.42)'; ctx.fillRect(0, 0, this.w, this.h);
-    this.label('SKYLINE COURIER', this.w / 2, 170, 62, '#ffffff', 'center', 900);
-    this.label('Fly the valley course, drop the cargo, and bring her home.', this.w / 2, 212, 21, COLORS.hudDim);
-    this.panel(this.w / 2 - 300, 250, 600, 240);
-    const lines = [
-      ['↑ / W · ↓ / S', 'climb and descend'],
-      ['← → / A D', 'bank and turn'],
-      ['Shift / Ctrl', 'throttle up / down'],
-      ['Mouse hold + move', 'steer'],
-      ['Space / click', 'drop cargo'],
-      ['P', 'pause'],
-    ];
-    lines.forEach(([k, v], i) => {
-      this.label(k, this.w / 2 - 40, 290 + i * 34, 18, COLORS.ringNext, 'right', 800);
-      this.label(v, this.w / 2 - 16, 290 + i * 34, 18, COLORS.hud, 'left', 600);
-    });
-    this.label('Press ENTER or click to take off', this.w / 2, 548, 26, '#ffffff', 'center', 800);
-    this.label('8 rings · one cargo drop · one runway · mind the wind', this.w / 2, 584, 17, COLORS.hudDim);
-  }
-
-  // Results report: grade, score breakdown and fuel remaining, kept clear
-  // of the aircraft so the touchdown scene stays visible behind it.
-  endScreen(game) {
-    const ctx = this.ctx;
-    ctx.fillStyle = 'rgba(8,18,34,0.34)'; ctx.fillRect(0, 0, this.w, this.h);
-    const landed = game.state === 'landed';
-    this.label(landed ? `TOUCHDOWN — GRADE ${game.grade}` : 'CRASHED', this.w / 2, 150, 52, landed ? COLORS.ok : COLORS.warn, 'center', 900);
-    this.label(game.endReason, this.w / 2, 188, 20, COLORS.hud);
-    const px = this.w / 2 - 390, py = 455, pw = 780, ph = 195;
-    this.panel(px, py, pw, ph);
-    const rows = landed ? [
-      [`Rings ${game.nextRing}/${game.rings.length}`, `${game.ringScore}`],
-      ['Cargo delivery', game.cargo.hit ? `+${game.cargoBonus}` : '0'],
-      ['Landing', `+${game.landingBonus}`],
-      ['Time bonus', `+${game.timeBonus}`],
-      ['Fuel bonus', `+${game.fuelBonus}`],
-    ] : [
-      [`Rings ${game.nextRing}/${game.rings.length}`, `${game.ringScore}`],
-      ['Cargo delivery', game.cargo.hit ? `+${game.cargoBonus}` : '0'],
-    ];
-    rows.forEach(([k, v], i) => {
-      this.label(k, px + 56, py + 42 + i * 26, 19, COLORS.hudDim, 'left', 600);
-      this.label(v, px + pw - 56, py + 42 + i * 26, 19, COLORS.hud, 'right', 800);
-    });
-    this.label(`SCORE ${game.score}`, px + 56, py + ph - 22, 26, COLORS.ringNext, 'left', 900);
-    this.label(`Fuel ${Math.round(game.fuel)}% · Time ${Math.floor(game.time)}s`, px + pw - 56, py + ph - 22, 20, COLORS.hud, 'right', 700);
-    this.label('Press ENTER to fly again', this.w / 2, py + ph + 34, 22, '#ffffff', 'center', 800);
-  }
 }

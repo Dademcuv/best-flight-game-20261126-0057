@@ -1,10 +1,11 @@
 // Renderer for Skyline Courier: owns the chase camera and projection, then
-// composes the frame from the terrain, aircraft and HUD modules in order.
+// composes the frame from the terrain, scenery, airfield, aircraft and HUD
+// modules in order. The landed camera pulls back and up so the touchdown
+// scene shows the whole aircraft on the strip.
 import { VIEW } from './config.js';
-import {
-  drawSky, drawTerrain, drawWater, drawRoad, drawProps,
-  drawRunway, drawCargoZone, drawCargoCrate, drawRings, drawClouds,
-} from './terrain.js';
+import { drawSky, drawTerrain, drawWater, drawRoad } from './terrain.js';
+import { drawProps, drawClouds } from './scenery.js';
+import { drawRunway, drawCargoZone, drawCargoCrate, drawRings } from './airfield.js';
 import { drawAircraft } from './aircraft.js';
 import { Hud } from './hud.js';
 
@@ -17,12 +18,16 @@ export class Renderer {
   }
 
   // Camera sits behind and above the aircraft, looking along its heading.
+  // After touchdown it pulls farther back and higher, looking down the
+  // strip so the runway markings read around the parked aircraft.
   camera(game) {
-    const back = 26, up = 7;
+    const ended = game.state === 'landed' || game.state === 'crashed';
+    const back = ended ? 96 : 26, up = ended ? 54 : 7;
     const cx = game.pos.x - Math.sin(game.heading) * back;
     const cz = game.pos.z + Math.cos(game.heading) * back;
     const cy = game.pos.y + up;
-    return { x: cx, y: cy, z: cz, heading: game.heading, pitch: game.pitch * 0.55 - 0.045, roll: game.roll * 0.35 };
+    const pitch = ended ? -0.2 : (game.cameraPitch ?? game.pitch * 0.55 - 0.075);
+    return { x: cx, y: cy, z: cz, heading: game.heading, pitch, roll: game.roll * (ended ? 0.2 : 0.35) };
   }
 
   project(cam, x, y, z) {
@@ -55,8 +60,8 @@ export class Renderer {
     drawRunway(this.ctx, project);
     drawCargoZone(this.ctx, project);
     drawCargoCrate(this.ctx, project, game);
-    drawRings(this.ctx, cam, project, game, t);
     drawClouds(this.ctx, project);
+    drawRings(this.ctx, cam, project, game, t);
     drawAircraft(this.ctx, VIEW, project, game, t);
     this.hud.draw(game);
   }

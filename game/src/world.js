@@ -60,12 +60,15 @@ export function forestTone(x, z) {
 }
 
 // Base terrain colour before directional shading in the terrain renderer.
+// Snow stays on the highest, flattest crests; steep high ground reads as
+// blue-grey rock with green shoulders instead of one flat white band.
 export function terrainColor(h, slope, x, z) {
   if (h < WORLD.waterLevel + 1.6) return '#d9c48a';
-  if (h > 545 || (h > 470 && slope > 0.4)) return '#f6f9fc';
-  if (slope > 0.52 || h > 430) return h > 500 ? '#8a8378' : '#655e52';
-  if (h > 250) return '#3e7d46';
   const tone = fieldTone(x, z);
+  if (h > 652) return tone > 0.42 ? '#f6f9fc' : '#dbe9f6';
+  if (h > 565 && slope < 0.3) return '#c9d8ea';
+  if (slope > 0.58 || h > 452) return tone > 0.56 ? '#7d7468' : tone < 0.3 ? '#5d665f' : '#6f6a5f';
+  if (h > 300) return tone > 0.6 ? '#4d7d4a' : '#386b43';
   if (forestTone(x, z) > 0.62 && h > 45) return '#2f6e3e';
   if (tone > 0.66) return '#a8b45c';
   if (tone < 0.3) return '#4f9a4c';
@@ -75,7 +78,7 @@ export function terrainColor(h, slope, x, z) {
 // Ring course: north up the valley, west over the lake, home to the field.
 export function buildCourse() {
   const pts = [
-    [0, 300, -1200], [700, 280, -2400], [-650, 320, -3600], [500, 350, -4800],
+    [0, 292, -1320], [720, 282, -2450], [-650, 320, -3600], [500, 350, -4800],
     [-1800, 310, -3600], [-2900, 250, -1800], [-2400, 210, 400], [-700, 205, -900],
   ];
   return pts.map(([x, y, z], i) => ({ x, y, z, done: false, index: i }));
@@ -87,9 +90,9 @@ export function buildClouds() {
   for (let i = 0; i < 52; i++) {
     out.push({
       x: (hash(i, 71) - 0.5) * 18000,
-      y: 430 + hash(i, 97) * 340,
+      y: 560 + hash(i, 97) * 260,
       z: (hash(i, 131) - 0.5) * 18000,
-      s: 150 + hash(i, 57) * 280,
+      s: 88 + hash(i, 57) * 150,
     });
   }
   return out;
@@ -121,9 +124,9 @@ export function buildBuildings() {
   const add = (x, z, w, d, h, color, roof, yOff = 0) => boxes.push({ x, z, y: terrainHeight(x, z) + yOff, w, d, h, color, roof });
   add(-150, -2250, 90, 60, 22, '#c8cfd6', '#7a4a3a');   // hangar west
   add(150, -2250, 90, 60, 22, '#c8cfd6', '#7a4a3a');    // hangar east
-  add(120, -2920, 34, 34, 58, '#b9c9d8', '#34455c');    // control tower shaft
-  add(120, -2920, 44, 44, 12, '#34455c', '#22303f', 58); // tower cab
-  add(-130, -2920, 70, 46, 16, '#d8c9a8', '#8a5a44');   // terminal shed
+  add(260, -3150, 34, 34, 46, '#b9c9d8', '#34455c');   // control tower shaft
+  add(260, -3150, 44, 44, 12, '#34455c', '#22303f', 46); // tower cab
+  add(-230, -3000, 70, 46, 16, '#d8c9a8', '#8a5a44');  // terminal shed
   for (let i = 0; i < 9; i++) {
     const x = 430 + (hash(i, 31) - 0.5) * 160;
     const z = -700 + i * 210 + (hash(i, 47) - 0.5) * 90;
